@@ -1,0 +1,16 @@
+  
+{% extends 'base.html' %}
+{% load plotly_dash %}
+{% load static %}
+<!-- Dajngo Plotly dash -->
+<script src="https://cdn.plot.ly//plotly-latest.min.js"></script>
+{% block main %}
+
+    
+{% comment %} render plotly-dashboard {% endcomment %}
+<div class="{% plotly_class name="dashboard" %} card mt-5 pt-5" style="width:100%; height:100%;">
+  {% plotly_app name="dashboard" ratio=0.65  %}
+</div>  
+
+</div>
+{% endblock %}

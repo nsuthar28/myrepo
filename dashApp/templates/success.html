@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block main %}
+    <div class="container-fluid">
+        <div class="fullscreen row align-items-center">
+            <div class="col-md-4 mx-md-auto text-center">
+                {% comment %} <div class="center-xy text-light bold" style="font-size: 25rem; z-index: -1;">404</div><img src="img/section/status/404.svg" class="img-responsive w-70 mx-auto" alt=""> {% endcomment %}
+                <h2 class="bold text-success mt-5">Payment successfully done</h2>
+                {% comment %} <div>
+                    <a href="#" class="btn btn-rounded btn-danger text-contrast ms-2 ms-md-5 mb-2"> Cancel
+                        <i class="fas fa-cancel ms-2"></i> 
+                    </a>
+                </div>     {% endcomment %}
+                <a href={% url "dashboard" %} class="btn btn-rounded  btn-success text-contrast ms-2 ms-md-5">Go to Dashboard
+                    <i class="fas fa-long-arrow-alt-right ms-2"></i> 
+                </a>
+                <a href={% url "home" %} class="btn btn-rounded btn-info text-contrast ms-2 ms-md-5">Back to home
+                    <i class="fas fa-long-arrow-alt-right ms-2"></i> 
+                </a>
+            </div>
+        </div>
+    </div>
+    
+{% endblock %}

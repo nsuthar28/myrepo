@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en" dir="rtl">
+{% load static %}
+<head>
+    {%block head%}
+    <meta charset="utf-8">
+    <!--[if IE]><meta http-equiv="X-UA-Compatible" content="IE=edge" /><![endif]-->
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width,initial-scale=1"><!-- Place ../favicon.ico in the root directory -->
+    <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+    <link rel="icon" href="../favicon.ico">
+    
+    <!-- fonts style -->
+    <link href="https://fonts.googleapis.com/css?family=Poppins:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Caveat" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+    
+    <!-- fontawesome  -->
+    <script defer src="https://use.fontawesome.com/releases/v5.15.4/js/all.js"></script>
+       
+    <title>Forecast Dashboard</title>
+    
+    <!-- theme css -->
+    <link rel="stylesheet" href={% static "/css/fontawesome.css" %}>
+    <link rel="stylesheet" href={% static "/css/aos.css" %}>
+    <link rel="stylesheet" href={% static "/css/cookieconsent.min.css" %}>
+    <link rel="stylesheet" href={% static "/css/magnific-popup.css" %}>
+    <link rel="stylesheet" href={% static "/css/odometer-theme-minimal.css" %}>
+    <link rel="stylesheet" href={% static "/css/prism-okaidia.css" %}>
+    <link rel="stylesheet" href={% static "/css/simplebar.css" %}>
+    <link rel="stylesheet" href={% static "/css/smart_wizard_all.css" %}>
+    <link rel="stylesheet" href={% static "/css/swiper-bundle.css" %}>
+    <link rel="stylesheet" href={% static "/css/dashcore.css" %}>
+    <link rel="stylesheet" href={% static "/css/rtl.css" %}>
+    <link rel="stylesheet" href={% static "/css/demo.css" %}>
+    
+    
+    <!-- endinject -->
+    {% endblock %}
+</head>
+
+
+<body>
+    
+    <!-- ./Making stripe menu navigation -->
+    {% if request.path != '/signup/' and request.path != '/login/' %}
+    <nav class="st-nav navbar main-nav navigation fixed-top" id="main-nav" style="background: #5533FF;z-index:99;">
+        {% block nav %}
+        <div class="container">
+          <ul class="st-nav-menu nav navbar-nav">
+            <li class="st-nav-section st-nav-primary nav-item">
+                <a class="st-root-link item-products st-has-dropdown nav-link" data-dropdown="blocks" href={% url "subscription"%}> Pricing</a> 
+                <a class="st-root-link nav-link" href={% url "home"%}>Home</a> 
+            <li class="st-nav-section st-nav-secondary nav-item">
+                {% if request.user.is_authenticated %}
+                <a class="btn btn-rounded btn-solid px-3" href={% url 'logout'%} target="_blank">
+                    <i class="fas fa-user-plus d-none d-md-inline me-md-0 me-lg-2"></i> 
+                    <span class="d-md-none d-lg-inline">Logout</span>
+                </a>   
+                {% else %}
+                <a class="btn btn-rounded btn-outline ms-3 px-3" href={% url 'login'%} target="_blank">
+                    <i class="fas fa-sign-in-alt d-none d-md-inline me-md-0 me-lg-2"></i> 
+                    <span class="d-md-none d-lg-inline">Login</span> 
+                </a>
+                <a class="btn btn-rounded btn-solid px-3" href={% url 'signup'%} target="_blank">
+                    <i class="fas fa-user-plus d-none d-md-inline me-md-0 me-lg-2"></i> 
+                    <span class="d-md-none d-lg-inline">Signup</span>
+                </a>
+                {% endif %}
+              </li><!-- Mobile Navigation -->
+            <li class="st-nav-section st-nav-mobile nav-item"><button class="st-root-link navbar-toggler" type="button"><span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span></button>
+                
+              <div class="st-popup">
+                    <div class="st-popup-container"><a class="st-popup-close-button">Close</a>
+                        <div class="st-dropdown-content-group">
+                            <h4 class="text-uppercase regular">Pages</h4>
+                            <a class="regular text-primary" href="#">
+                                <i class="far fa-building ms-2"></i> About 
+                            </a>
+                            <a class="regular text-success" href="#">
+                                <i class="far fa-envelope ms-2"></i> Contact 
+                            </a>
+                            <a class="regular text-warning" href={% url "subscription"%}>
+                                <i class="fas fa-hand-holding-usd ms-2"></i> Pricing 
+                            </a>
+                        </div>
+                        <div class="st-dropdown-content-group bg-light b-t"><a href={% url "login" %}>Login <i class="fas fa-arrow-right"></i></a></div>
+                    </div>
+                </div>
+            </li>
+        </ul>
+        </div>
+        {% endblock %}   
+    </nav>
+    {% endif %}
+    <!-- django messages -->
+    {% for message in messages  %}            
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show my-0 " role="alert">
+        <strong>Message : </strong> {{ message }}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close" >
+        </button>
+    </div>
+    {% endfor %}
+    <main>
+    {% block main %} {% endblock %}
+    </main>
+    <script src={% static "/js/jquery.js" %}></script>
+    <script src={% static "/js/bootstrap.bundle.js" %}></script>
+    <script src={% static "/js/card.js" %}></script>
+    <script src={% static "/js/counterup2.js" %}></script>
+    <script src={% static "/js/noise.js" %}></script>
+    <script src={% static "/js/noframework.waypoints.js" %}></script>
+    <script src={% static "/js/odometer.js" %}></script>
+    <script src={% static "/js/prism.js" %}></script>
+    <script src={% static "/js/simplebar.js" %}></script>
+    <script src={% static "/js/swiper-bundle.js" %}></script>
+    <script src={% static "/js/jquery.easing.js" %}></script>
+    <script src={% static "/js/jquery.validate.js" %}></script>
+    <script src={% static "/js/jquery.smartWizard.js" %}></script>
+    <script src={% static "/js/feather.js" %}></script>
+    <script src={% static "/js/aos.js" %}></script>
+    <script src={% static "/js/typed.js" %}></script>
+    <script src={% static "/js/jquery.magnific-popup.js" %}></script>
+    <script src={% static "/js/cookieconsent.js" %}></script>
+    <script src={% static "/js/jquery.animatebar.js" %}></script>
+    <script src={% static "/js/common.js" %}></script>
+    <script src={% static "/js/forms.js" %}></script>
+    <script src={% static "/js/stripe-bubbles.js" %}></script>
+    <script src={% static "/js/stripe-menu.js" %}></script>
+    <script src={% static "/js/credit-card.js" %}></script>
+    <script src={% static "/js/pricing.js" %}></script>
+    <script src={% static "/js/shop.js" %}></script>
+    <script src={% static "/js/svg.js" %}></script>
+    <script src={% static "/js/site.js" %}></script>
+    <script src={% static "/js/wizards.js" %}></script>
+    <script src={% static "/js/cookie-consent-util.js" %}></script>
+    <script src={% static "/js/cookie-consent-themes.js" %}></script>
+    <script src={% static "/js/cookie-consent-custom-css.js" %}></script>
+    <script src={% static "/js/cookie-consent-informational.js" %}></script>
+    <script src={% static "/js/cookie-consent-opt-out.js" %}></script>
+    <script src={% static "/js/cookie-consent-opt-in.js" %}></script>
+    <script src={% static "/js/cookie-consent-location.js" %}></script>
+    <script src={% static "/js/demo.js" %}></script>
+    <!-- endinject -->
+</body>
+
+</html>

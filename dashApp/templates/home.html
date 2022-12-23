@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block main %}
+    
+    <main class="overflow-hidden">
+        <header class="header section text-contrast overlay overlay-primary alpha-7 parallax cover" style="background-image: {% static "img/bg/sunrise.jpg" %};">
+            <div class="container-fluid pb-9">
+                <div class="row text-center">
+                    <div class="col-12 col-lg-6 mx-auto"><img src={% static "img/logo-light.png" %} alt="">
+                        <h1 class="text-contrast bold display-4 display-md-3 text-capitalize mt-5">Welcome DashCore</h1>
+                        {% comment %} <p class="lead bold">Powerful Responsive SaaS, Startup & Software Template</p> {% endcomment %}
+                        <nav class="nav d-flex justify-content-center mb-5 mt-7">
+                            <a href={% url "dashboard"%} class="btn btn-rounded btn-success text-contrast ms-2 ms-md-5">View Forecasting 
+                                <i class="fas fa-long-arrow-alt-right ms-2"></i> 
+                            </a>
+                            
+                    </div>
+                </div>
+            </div>
+        </header>
+    </main>   
+        
+{% endblock %}    
