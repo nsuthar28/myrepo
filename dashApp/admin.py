@@ -1,6 +1,4 @@
 from django.contrib import admin
-from dashApp.models import StripeCustomer, Product, Price 
+from dashApp.models import StripeCustomer
 
 admin.site.register(StripeCustomer)
-admin.site.register(Product)
-admin.site.register(Price)

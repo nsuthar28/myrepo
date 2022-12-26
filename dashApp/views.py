@@ -36,7 +36,6 @@ def home(request):
 
 @csrf_exempt
 @login_required(login_url='/login/')      
-@subscribers_only
 def dashboard(request, template_name="dashboard.html", *args):
     """ dashboard() will be render dashboard of forcasting.
 
@@ -77,7 +76,6 @@ def handleSignUp(request):
                 if password != confirm_password:
                     messages.error(request,"Passwords do not match")
                     return redirect('signup')
-                    
                 myuser = User.objects.create_user(username=username,email=email,password=password)
                 myuser.save()
                 messages.success(request,"You have successfully Registered")
@@ -123,12 +121,7 @@ def handleLogIn(request):
                 request.session['user'] = lemail
                 messages.info(request, f"You are now logged in as {lemail}.")
                 print("logged in..")
-                is_subscription = StripeCustomer.objects.get(user=user).is_subscribed
-                print("is_subscription", is_subscription)
-                if is_subscription:
-                    return render(request, 'home.html')
-                else:
-                    return redirect('subscription')
+                return render(request, 'home.html')
             else:
                 messages.error(request,"Invalid username or password")
         except:
