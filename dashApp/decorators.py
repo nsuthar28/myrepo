@@ -10,7 +10,7 @@ def subscribers_only(function):
   def wrap(request, *args, **kwargs):
         user = StripeCustomer.objects.get(user=request.user)
         
-        if user.customer_point >= 2:
+        if user.customer_point >= 1:
             return function(request, *args, **kwargs)  
         else:
             return HttpResponseRedirect('/subscription/')

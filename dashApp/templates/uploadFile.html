@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+
+{% block main %}
+    <div class="container-fluid">
+        <div class="fullscreen row align-items-center">
+            <section class="block bg-contrast">
+                <div class="container py-4" dir="ltr">
+                    <div class='mb-2' style="text-align-last: center;">
+                    <a class="btn btn-primary" data-toggle="collapse" href="#collapse" aria-expanded="false" aria-controls="collapse">
+                        Show previous file
+                    </a>
+                </div>
+                    
+                    <div class="collapse" id='collapse' style="text-align:-webkit-center; padding-top: inherit;">
+                        <table class='table table-hover text-center' style='width: 600px; align-self:center; border: gray solid 1px;'>
+                            <thead>
+                                <tr class="table-primary">
+                                <th>File Name</th>
+                                <th>Forecast model</th>
+                                </tr>
+                            </thead>
+
+                            {% for fileName in files %}
+                                <tr class= "table-default">
+                                <td >{{fileName}}</td>
+                                <td ><a class='btn btn-primary m-2 ms-4' href={% url "oldforecast" fileName=fileName %}>Open</a></td>
+                                </tr>
+                            {% empty %}
+                                <tr class= "table-default">
+                                    <td><strong>No Records</strong></td>
+                                </tr>    
+                            {%endfor%}
+                            </table>
+                        </div>
+     
+                    
+
+
+                    <div class="col-lg-6 mx-auto mt-2" style="width:auto; position:relative">
+                        
+                        <div class="card text-center" style="width:auto;">
+                            
+                            <form class='mt-4 mb-2' action="" method="POST" style='width: auto; align-self: center; min-width: 400px;'  enctype="multipart/form-data">
+                                {% csrf_token %}
+                                    {% if point != 0 %}
+                                    <div class="mb-3 d-flex">
+                                        <input class="form-control" type="file" id="formFile" name="fileinput">
+                                        <div class="px-2 py-1 mb-1 d-flex fs-5">
+                                        <i class='fab fa-gg-circle fa-lg me-1' style="color:#F8BD1F;"></i>
+                                        <h5>{{point}}</h5> 
+                                           
+                                        </div>  
+                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-rounded" id="upload">Upload <i class="fas fa-long-arrow-alt-right ms-2"></i></button>
+                                    {% else %}
+                                    <div class="mb-3 d-flex">
+                                        {% comment %} <label for="formFile" class="form-label">you have not enough point </label> {% endcomment %}
+                                        <input class="form-control" type="file" id="formFile" name="fileinput">
+                                        <div class="d-flex">
+                                            <a href="#" data-toggle="tooltip" data-placement='bottom' title="You have enough coin"><i class="fa fa-exclamation-triangle m-3" style="color:red;" aria-hidden="true"></i></a> 
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-rounded mt-2 disabled id="upload">">Upload <i class="fas fa-long-arrow-alt-right ms-2"></i></button>
+                                    {% endif %}
+                                    
+                                </form>
+                            </div>
+                                
+                            
+                         
+                    </div>
+                    
+                                         
+                </div>
+            </section>
+        </div>
+    </div>
+    
+
+    <script>
+        $(document).ready(function(){
+          $('[data-toggle="tooltip"]').tooltip();   
+        });
+        </script>
+        
+{% endblock %}

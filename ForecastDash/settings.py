@@ -30,13 +30,7 @@ DEBUG = False
 ALLOWED_HOSTS = ["*"]
 
 
-# env = environ.Env()
-# read .env file
-# environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
-
-
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -70,7 +64,6 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'ForecastDash.urls'
 
-
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -82,12 +75,19 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'dashApp.context_processors.access_banner_image'
             ],
         },
     },
 ]
 
+
+#  enable the use of frames within HTML documents
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
 WSGI_APPLICATION = 'ForecastDash.wsgi.application'
+
+ASGI_APPLICATION = 'strip.routing.application'
 
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
@@ -143,16 +143,23 @@ USE_TZ = True
 
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
-ASGI_APPLICATION = 'strip.routing.application'
+# Plotly dash settings
+PLOTLY_DASH = {
+    "ws_route" : "ws/channel",
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [('127.0.0.1', 6379),],
-        }
-    }
+    # "insert_demo_migrations" : True,  # Insert model instances used by the demo
+
+    "http_poke_enabled" : True, # Flag controlling availability of direct-to-messaging http endpoint
+
+    "view_decorator" : None, # Specify a function to be used to wrap each of the dpd view functions
+
+    "cache_arguments" : True, # True for cache, False for session-based argument propagation
+
+    #"serve_locally" : True, # True to serve assets locally, False to use their unadulterated urls (eg a CDN)
+
+    # "stateless_loader" : "demo.scaffold.stateless_app_loader",
 }
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
@@ -167,6 +174,30 @@ if DEBUG:
 else:
     STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
+
+# Caching - demo uses redis as this is present due to channels use
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django_redis.cache.RedisCache",
+#         "LOCATION": "redis://127.0.0.1:6379/1",
+#         "OPTIONS": {
+#             "CLIENT_CLASS": "django_redis.client.DefaultClient"
+#         },
+#         # "KEY_PREFIX": "dpd-demo"
+#     }
+# }
+
+# Channels config, to use channel layers
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379),],
+        }
+    }
+}
+
+# Staticfiles finders for locating dash app assets and related files
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
@@ -184,8 +215,6 @@ PLOTLY_COMPONENTS = [
     'dpd_static_support'
 ]
 
-#  enable the use of frames within HTML documents
-X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
@@ -204,4 +233,4 @@ STRIPE_SECRET_KEY = os.environ.get(
 STRIPE_WEBHOOK_SECRET = os.environ.get(
     "STRIPE_WEBHOOK_SECRET", 'whsec_4bcd158ff18b2b334ef8c79172bfe4b03d4a08694757943ee6c649cbd95a10a7')
 STRIPE_PLAN_LIMIT = os.environ.get(
-    "STRIPE_PLAN_LIMIT", 2)   
+    "STRIPE_PLAN_LIMIT", 2)    

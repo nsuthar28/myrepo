@@ -10,7 +10,7 @@ urlpatterns = [
     path('signup/', views.handleSignUp, name='signup'),
     path('login/', views.handleLogIn, name='login'),
 
-    # DASHBOARD
+    # DASHBOARD 
     path('forecast-dashboard/', views.dashboard, name='dashboard'),
 
     # stripe subscription
@@ -19,8 +19,11 @@ urlpatterns = [
     path("success/", views.success, name="success"),
     path("cancel/", views.cancel, name="cancel"),
     path("subscription/", views.handleSubscription, name="subscription"),
-    path('webhook/', views.stripe_webhook),
-
+    # path('webhook/', views.stripe_webhook),
+    
+    # upload file
+    path('upload/', views.handleUpload, name='uploadfile'),
+    path('oldForecast/<str:fileName>', views.handleOldForecast, name='oldforecast'),
 
 
 ]

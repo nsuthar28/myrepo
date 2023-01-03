@@ -20,6 +20,7 @@ import io
 import os
 
 from dashApp.utils import *
+import json
 
 path = settings.BASE_DIR
 # Import file -- will need to have logic around whether CSV or Excel
@@ -131,8 +132,8 @@ app.layout = html.Div([
                 multiple=True
             ),
 
-            # dcc.Store(id='prelim-store', data=[], storage_type='memory')
-        ])
+            dcc.Store(id='prelim-store', data=[], storage_type='memory')
+        ], style= {'display': 'none'})
 
     ),
 
@@ -210,11 +211,6 @@ app.layout = html.Div([
                 ),
 
 
-
-
-
-
-
             ], className='p-3 mb-2 bg-white text-dark'),
 
             width=4
@@ -283,8 +279,45 @@ app.layout = html.Div([
 ###### CALL BACKS #####
 
 ## Callback for main graph before forecast is ran
+@app.expanded_callback(Output('prelim-store', 'data'),
+            Input('upload-data', 'children'),
+)
+
+def read_data(contents, session_state=None, **kwargs):
+    print("uploaded file", contents)
+   
+    request = kwargs["request"]
+    import pdb;pdb.set_trace()
+    try:
+        df = pd.read_csv("./"+contents, index_col='Date', parse_dates=True)
+        print("df..",df)
+        request.session["file"] = df
+        return_df = df.to_json(date_format='iso', orient='split') #I have to convert to json format to store in dcc.Store
+    except:
+        json_contents = json.loads(contents)
+
+        if len(json_contents) == 1:
+            return_df = [json_contents["df_initial"]]
+        elif len(json_contents) == 4:
+            df = json_contents["df_initial"]
+            df_1 = json_contents["df_1"]
+            df_2 = json_contents["df_2"]
+            df_3 = json_contents["df_3"]
+            return_df = [df, df_1, df_2, df_3]
+        else:
+            df_1 = json_contents["df_1"]
+            df_2 = json_contents["df_2"]
+            df_3 = json_contents["df_3"]
+
+            # request.session["file"] = [df_1, df_2, df_3]
+            return_df = [df_1, df_2, df_3]
+
+    return return_df
+
+## Callback for main graph before forecast is ran
 @app.callback(Output('fcast_graph_main', 'figure'),
-            [Input('intermediate-value', 'data'),
+            [Input('prelim-store', 'data'),
+            Input('intermediate-value', 'data'),
             Input('button_fcast', 'n_clicks'),
             Input('product_dropdown', 'value'),
             Input('upload-data', 'contents')],
@@ -293,13 +326,18 @@ app.layout = html.Div([
             State('upload-data', 'last_modified'),
             prevent_initial_call=True)
 
-def update_figure(stored_data, button_click, product_dropdown, file_content, value, filename, file_last_modified, **kwargs):    
+def update_figure(prelim_stored_data, stored_data, button_click, product_dropdown, file_content, value, filename, file_last_modified, **kwargs):    
+    print("update_figure.........")
+    import pdb;pdb.set_trace()
     changed_id = [p['prop_id'] for p in kwargs['callback_context'].triggered][0]
+    if file_content:
+        content_type, content_string = file_content[0].split(',')
+        decoded = base64.b64decode(content_string)
+        local_df = pd.read_csv(io.StringIO(decoded.decode('utf-8')),index_col='Date', parse_dates=True)
+    else:
+        print("prelim_stored_data", prelim_stored_data)
+        local_df = pd.read_json(prelim_stored_data[0], orient='split')
 
-    content_type, content_string = file_content[0].split(',')
-    decoded = base64.b64decode(content_string)
-    local_df = pd.read_csv(io.StringIO(decoded.decode('utf-8')),index_col='Date', parse_dates=True)
-    
     if 'button_fcast' in changed_id:
         df1 = pd.read_json(stored_data[0], orient='split')
         df1['Item'] = df1['Item'].astype(str)
@@ -337,7 +375,11 @@ def update_figure(stored_data, button_click, product_dropdown, file_content, val
         if product_dropdown:
             df1 = df1[df1['Item'].isin(product_dropdown)]
         
-        filtered_df = df1.groupby(['Date'], as_index=False)['Qty'].sum()
+        try:
+            filtered_df = df1.groupby(['Date'], as_index=False)['Qty'].sum()
+        except:
+            df1 = df1.rename(columns={'index':'Date'})
+            filtered_df = df1.groupby(['Date'], as_index=False)['Qty'].sum()
 
         fig = px.line(filtered_df, x='Date', y='Qty', title='Sales Data', template='plotly_white', markers=True)
 
@@ -355,16 +397,17 @@ def update_figure(stored_data, button_click, product_dropdown, file_content, val
 
 ## Callback for set product-dropdown values
 @app.callback(Output('product_dropdown', 'options'),
-              Input('upload-data', 'contents'),
+            #   Input('upload-data', 'contents'),
+              Input('prelim-store', 'data'),
               prevent_initial_call=True)
 
-def set_dropdown(file_content):
-    if file_content == None:
+def set_dropdown(prelim_stored_data):
+    if prelim_stored_data == None:
         return dash.no_update
 
-    content_type, content_string = file_content[0].split(',')
-    decoded = base64.b64decode(content_string)
-    local_df = pd.read_csv(io.StringIO(decoded.decode('utf-8')),index_col='Date', parse_dates=True)
+    # content_type, content_string = file_content[0].split(',')
+    # decoded = base64.b64decode(content_string)
+    local_df = pd.read_json(prelim_stored_data[0], orient='split')
     
     product_options = []
     for po in local_df['Item'].unique():
@@ -378,31 +421,47 @@ def set_dropdown(file_content):
     Input('button_fcast', 'n_clicks'),
     State('input_fcast_period', 'value'),
     State('upload-data', 'contents'),
+    State('prelim-store', 'data'),
     prevent_initial_call=True)
     
-def clean_data(button_click, value,file_content, **kwargs): # TO BE UPDATED! Need to update the value to feed in user input value for Forecast Period
-    
+def clean_data(button_click, value, file_content, prelim_stored_data, **kwargs): # TO BE UPDATED! Need to update the value to feed in user input value for Forecast Period
+    print("clean_data....")
+    import pdb;pdb.set_trace()
+
     changed_id = [p['prop_id'] for p in kwargs['callback_context'].triggered][0]
-    content_type, content_string = file_content[0].split(',')
-    
-    decoded = base64.b64decode(content_string)
-    local_df = pd.read_csv(io.StringIO(decoded.decode('utf-8')),index_col='Date', parse_dates=True)
+
+    if file_content:
+        content_type, content_string = file_content[0].split(',')
+        decoded = base64.b64decode(content_string)
+        local_df = pd.read_csv(io.StringIO(decoded.decode('utf-8')),index_col='Date', parse_dates=True)
+    else:
+        local_df = pd.read_json(prelim_stored_data[0], orient='split')
 
     horizon = int(np.floor(len(local_df.index.unique())*.2))
     
     items = local_df['Item'].unique()
-
+    request = kwargs["request"]
     if 'button_fcast' in changed_id:
+        is_oldData = request.session.get("is_oldData")
+        if not is_oldData:
+            df_results, df_results_best, df1_f1 = run_fcast_full(local_df, value, horizon, items)
+
+            # a few filter steps that compute the data
+            # as it's needed in the future callbacks
+            df_1 = df1_f1
+            df_2 = df_results
+            df_3 = df_results_best
+            
+            
+            
+            request.session["file"] = [df_1.to_json(date_format='iso', orient='split'), df_2.to_json(date_format='iso', orient='split'), df_3.to_json(date_format='iso', orient='split')]
+            store_intermediate_data(request)
+            return [df_1.to_json(date_format='iso', orient='split'), df_2.to_json(date_format='iso', orient='split'), df_3.to_json(date_format='iso', orient='split')]
+
+        else:
+            return prelim_stored_data[1:]
+
         
-        df_results, df_results_best, df1_f1 = run_fcast_full(local_df, value, horizon, items)
-
-        # a few filter steps that compute the data
-        # as it's needed in the future callbacks
-        df_1 = df1_f1
-        df_2 = df_results
-        df_3 = df_results_best
-        return [ df_1.to_json(date_format='iso', orient='split'), df_2.to_json(date_format='iso', orient='split'), df_3.to_json(date_format='iso', orient='split')]
-
 
 ## Callback for results table
 @app.callback(
@@ -413,6 +472,7 @@ def clean_data(button_click, value,file_content, **kwargs): # TO BE UPDATED! Nee
     )
 
 def update_table1( btn1, value):
+    print("update_table1..........")
     changed_id = [p['prop_id'] for p in callback_context.triggered][0]
     if 'button_fcast' in changed_id:
 

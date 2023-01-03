@@ -14,6 +14,10 @@ from dashApp.decorators import subscribers_only
 import stripe
 import datetime
 
+from django.core.files.storage import FileSystemStorage
+import pandas as pd
+import json
+
 
 
 
@@ -25,6 +29,8 @@ def handler404(request, exception, template_name="404.html"):
 def handler500(request, *args, **argv):
     return render(request, '500.html', status=500) 
 
+
+
 # Create your views here.
 def home(request):
     """ home() will be render landing home page.
@@ -33,10 +39,9 @@ def home(request):
        ["home.html] 
 
     """
-    print("home page......")    
-    return render(request, 'home.html')
+    print("home page......")
 
-    
+    return render(request, 'home.html')
 
 @csrf_exempt
 @login_required(login_url='/login/')      
@@ -48,8 +53,31 @@ def dashboard(request, template_name="dashboard.html", *args):
        ["dashboard.html] 
 
     """
-    print("dashboard......")    
-    return render(request, template_name='dashboard.html')
+    print("dashboard......", request)    
+    
+    fileurl = "./media/Food_Distributor_Data_3items.csv"
+    context_data = {"upload-data": {"children": fileurl}}
+
+    context_data_json = json.dumps(context_data)
+    print("context_data_json", context_data_json)
+
+    return render(request, "dashboard.html", context={"context": context_data_json})
+
+def handleOldForecast(request, fileName):
+    print("handle old forecast")
+    import pdb;pdb.set_trace()
+    
+    customerData = CustomerData.objects.get(customer=request.user, file_name=fileName)
+    
+    request.session["stored_datas"] = customerData.data
+    request.session["is_oldData"] = True
+    print("request.session", request.session)
+
+    context_data = {"upload-data": {"children": json.dumps(customerData.data)}}
+
+    context_data_json = json.dumps(context_data)
+    print("context_data_json", context_data_json)
+    return render(request, "dashboard.html",  context={"context": context_data_json})
 
 @csrf_exempt
 def handleSignUp(request):
@@ -71,7 +99,6 @@ def handleSignUp(request):
         email = request.POST.get('email')
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
-
         try:
             if User.objects.filter(email=email) != User.objects.filter(email=email).exists(): 
                 if len(password) < 5:
@@ -84,6 +111,7 @@ def handleSignUp(request):
                 myuser = User.objects.create_user(username=username,email=email,password=password)
                 myuser.save()
                 messages.success(request,"You have successfully Registered")
+
                 print("Registerd..")
                 return redirect('login')
 
@@ -123,10 +151,13 @@ def handleLogIn(request):
             user = authenticate(username=lemail, password=password)
             if user is not None:
                 login(request, user)
+                stripeuser = StripeCustomer.objects.get(user= request.user)
                 request.session['user'] = lemail
+                request.session['point'] = stripeuser.customer_point
+
                 messages.info(request, f"You are now logged in as {lemail}.")
                 print("logged in..")
-                return render(request, 'home.html')
+                return render(request, 'uploadFile.html')
             else:
                 messages.error(request,"Invalid username or password")
         except:
@@ -149,6 +180,54 @@ def handlelogout(request):
     except:
         messages.error("Unable to logout")
         return redirect("home")
+
+@csrf_exempt
+@login_required(login_url='/login/')   
+def handleUpload(request):
+    print("request.POST", request.method, request.FILES)
+    stripeuser = StripeCustomer.objects.get(user= request.user)
+
+    if request.method == 'POST':
+        
+        print("request.FILES",request.FILES)
+        
+        request_file = request.FILES.get("fileinput")
+        print("request_file", request_file)
+        
+        request.session["uploaded_file"] = request_file.name
+         
+
+        fs = FileSystemStorage()
+        file = fs.save("./"+request.user.username+"/"+request_file.name, request_file)
+        
+        fileurl = fs.url(file)
+        print("fileurl", fileurl)
+
+        df = pd.read_csv("./"+fileurl, index_col='Date', parse_dates=True)
+        df_json = df.to_json(orient='split')
+
+        custData, created = CustomerData.objects.get_or_create(customer=request.user, file_name=request_file.name, data={"df_initial": df_json})
+        custData.save()
+
+        context_data = {"upload-data": {"children": json.dumps({"df_initial": df_json})}}
+
+        context_data_json = json.dumps(context_data)
+        print("context_data_json", context_data_json)
+        
+        stripeuser.customer_point -= 1
+        stripeuser.save()
+
+        return render(request, "dashboard.html", context={"context": context_data_json})
+
+    else:
+        customerDatas = CustomerData.objects.filter(customer=request.user).values('file_name') 
+        fileNames = []
+        if customerDatas:
+            for fname in customerDatas:
+                fileNames.append(fname["file_name"])
+
+        return render(request, "uploadFile.html", context={"point": stripeuser.customer_point, "files": fileNames})
+    
 
 def set_subscription(user):
     try:
@@ -181,44 +260,55 @@ def create_checkout_session(request, price_id):
     Returns:
         [IF payment success : "success.html"]
         [ELSE payment canceled : "cancel.html"]
-
+    
     """
     if request.method == "GET":
         domain_url = os.environ.get('DOMAIN_URL','http://localhost:8000/')
         stripe.api_key = settings.STRIPE_SECRET_KEY
         stripe_customer = StripeCustomer.objects.get(user=request.user)
         try:
+            checkout_session = stripe.checkout.Session.create(
+                client_reference_id = request.user.id if request.user.is_authenticated else None,
+                success_url=domain_url + "success?session_id={CHECKOUT_SESSION_ID}",
+                cancel_url=domain_url + "cancel/",
+                payment_method_types= ["card"],
+                mode='payment',
+                line_items=[
+                    {
+                        "price": price_id,
+                        "quantity": 1,
+                    }
+                ],
+                
+            )
+            # set is_subscriptions field of user
+            # set_subscription(request.user)
+            request.session["price_id"] = price_id
+            print('checkout_session',checkout_session)
 
-                checkout_session = stripe.checkout.Session.create(
-                    client_reference_id = request.user.id if request.user.is_authenticated else None,
-                    success_url=domain_url + "success?session_id={CHECKOUT_SESSION_ID}",
-                    cancel_url=domain_url + "cancel/",
-                    payment_method_types= ["card"],
-                    model='payment',
-                    line_items=[
-                        {
-                            "price": price_id,
-                            "quantity": 1,
-                        }
-                    ],
-                    
-                )
-                # set is_subscriptions field of user
-                # set_subscription(request.user)
-                print('checkout_session',checkout_session)
-                return JsonResponse({"sessionId": checkout_session["id"]})
+
+            return JsonResponse({"sessionId": checkout_session["id"]})
 
 
         except Exception as e:
             return JsonResponse({"error": str(e)})
 
-@login_required(login_url='/login/')
+# @login_required(login_url='/login/')
 def success(request):
     """success() will render on successfull subscription-payment.
     """
+    # print("success...")
+    # import pdb;pdb.set_trace()
+    price_id = request.session.get("price_id")
+    stripe_price = stripe.Price.retrieve(price_id)
+    stripe_product = stripe.Product.retrieve(stripe_price.product)
+    stripeuser = StripeCustomer.objects.get(user= request.user)
+    stripeuser.customer_point += int(stripe_product.metadata.point)
+    stripeuser.save()
+
     return render(request, "success.html")
 
-@login_required(login_url='/login/')
+# @login_required(login_url='/login/')
 def cancel(request):
     """cancel() will render on cancellation of subscription-payment.
     """
@@ -229,21 +319,21 @@ def handleSubscription(request):
     """
     try:
         stripe.api_key = settings.STRIPE_SECRET_KEY
-        stripe_customer = StripeCustomer.objects.get(user=request.user)
         stripe_products = stripe.Product.list(limit=settings.STRIPE_PLAN_LIMIT)
-        print("stipe_products", stripe_products)
+        print("stripe_products", stripe_products)
         stripe_product = []
         for product in stripe_products.data:
             prod = dict()
             prod['description'] = product.description#
             prod['name'] = product.name#
             prod['point'] = product.metadata.point#
+            prod['price_id'] = str(product.default_price)
             stripe_price = stripe.Price.retrieve(product.default_price)#
             prod['price'] = float(stripe_price.unit_amount/100)#
             prod['unit'] = stripe_price.currency#
         
             stripe_product.append(prod)
-        stripe_product = sorted(stripe_product, key=lambda x: x['price'])
+        # stripe_product = sorted(stripe_product, key=lambda x: x['price'])
         context={'data':stripe_product}
         print('context..........', context )
     except Exception as e:
@@ -252,76 +342,75 @@ def handleSubscription(request):
 
 
 
-@csrf_exempt
-def stripe_webhook(request):
-    print("in webhook...")
-    stripe.api_key = settings.STRIPE_SECRET_KEY
-    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
-    payload = request.body
-    sig_header = request.META['HTTP_STRIPE_SIGNATURE']
-    event = None
+# @csrf_exempt
+# def stripe_webhook(request):
+#     print("in webhook...")
+#     stripe.api_key = settings.STRIPE_SECRET_KEY
+#     endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+#     payload = request.body
+#     sig_header = request.META['HTTP_STRIPE_SIGNATURE']
+#     event = None
 
-    try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, endpoint_secret
-        )
-    except ValueError as e:
-        # Invalid payload
-        return HttpResponse(status=400)
-    except stripe.error.SignatureVerificationError as e:
-        # Invalid signature
-        return HttpResponse(status=400)
-    print("event type...", event['type'])
+#     try:
+#         event = stripe.Webhook.construct_event(
+#             payload, sig_header, endpoint_secret
+#         )
+#     except ValueError as e:
+#         # Invalid payload
+#         return HttpResponse(status=400)
+#     except stripe.error.SignatureVerificationError as e:
+#         # Invalid signature
+#         return HttpResponse(status=400)
+#     print("event type...", event['type'])
 
-    # Handle the checkout.session.completed event
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        # Fetch all the required data from session
-        client_reference_id = session.get('client_reference_id')
-        stripe_customer_id = session.get('customer')
-        stripe_subscription_id = session.get('subscription')
+#     # Handle the checkout.session.completed event
+#     if event['type'] == 'checkout.session.completed':
+#         print(event)
+#         session = event['data']['object']
 
-        # Get the user and create a new StripeCustomer
-        user = User.objects.get(id=client_reference_id)
+#         # Fetch all the required data from session
+#         client_reference_id = session.get('client_reference_id')
+#         # stripe_customer_id = session.get('customer')
+#         # stripe_subscription_id = session.get('subscription')
+#         # Get the user and create a new StripeCustomer
+#         user = User.objects.get(id=client_reference_id)
+#         # get stripe customer object
+#         StripeCustomer_object = StripeCustomer.objects.get(user=user)
+#         # get stripe subscription object
+#         # stripe_subscription_object = stripe.Subscription.retrieve(stripe_subscription_id)
+#         # print("stripe_subscription_object", stripe_subscription_object)
 
-        # get stripe customer object
-        StripeCustomer_object = StripeCustomer.objects.get(user=user)
-
-        # get stripe subscription object
-        stripe_subscription_object = stripe.Subscription.retrieve(stripe_subscription_id)
-        print("stripe_subscription_object", stripe_subscription_object)
-
-        stripe_subscription_status = stripe_subscription_object["items"]["data"][0]["plan"]["active"]    
-        stripe_product_id = stripe_subscription_object["items"]["data"][0]["plan"]["product"]
-        stripe_subscription_end = stripe_subscription_object['current_period_end']
-        stripe_trial_end = stripe_subscription_object['trial_end']
-        # set stripe-customer-id and stripe-subsciption-id 
-        StripeCustomer_object.is_subscribed = stripe_subscription_status
-        StripeCustomer_object.stripeSubscriptionId=stripe_subscription_id
-        StripeCustomer_object.stripeCustomerId= stripe_customer_id
-        StripeCustomer_object.stripeProductId = stripe_product_id
-        if StripeCustomer_object.subscription_end == None:
-            StripeCustomer_object.subscription_end = datetime.datetime.fromtimestamp(stripe_subscription_end).date()
-            StripeCustomer_object.trial_end = datetime.datetime.fromtimestamp(stripe_trial_end).date()
+#         # stripe_subscription_status = stripe_subscription_object["items"]["data"][0]["plan"]["active"]    
+#         # stripe_product_id = stripe_subscription_object["items"]["data"][0]["plan"]["product"]
+#         # stripe_subscription_end = stripe_subscription_object['current_period_end']
+#         # stripe_trial_end = stripe_subscription_object['trial_end']
+#         # set stripe-customer-id and stripe-subsciption-id 
+#         # StripeCustomer_object.is_subscribed = stripe_subscription_status
+#         # StripeCustomer_object.stripeSubscriptionId=stripe_subscription_id
+#         # StripeCustomer_object.stripeCustomerId= stripe_customer_id
+#         # StripeCustomer_object.stripeProductId = stripe_product_id
+#         # if StripeCustomer_object.subscription_end == None:
+#             # StripeCustomer_object.subscription_end = datetime.datetime.fromtimestamp(stripe_subscription_end).date()
+#             # StripeCustomer_object.trial_end = datetime.datetime.fromtimestamp(stripe_trial_end).date()
             
-        else:
-            t= StripeCustomer_object.subscription_end.date()
-            s= datetime.datetime.fromtimestamp(stripe_subscription_end).date()
-            current = datetime.datetime.now().date()
-            if t < current:
-                    stripe_subscription_end_final = s
-                    StripeCustomer_object.subscription_end = stripe_subscription_end_final
+#         # else:
+#             # t= StripeCustomer_object.subscription_end.date()
+#             # s= datetime.datetime.fromtimestamp(stripe_subscription_end).date()
+#             # current = datetime.datetime.now().date()
+#             # if t < current:
+#                     # stripe_subscription_end_final = s
+#                     # StripeCustomer_object.subscription_end = stripe_subscription_end_final
                 
-            elif t > current:
-                    s_days= (s - current).days
-                    stripe_subscription_end_final = t + datetime.timedelta(days = s_days)
-                    StripeCustomer_object.subscription_end = stripe_subscription_end_final
+#             # elif t > current:
+#                     # s_days= (s - current).days
+#                     # stripe_subscription_end_final = t + datetime.timedelta(days = s_days)
+#                     # StripeCustomer_object.subscription_end = stripe_subscription_end_final
+            
+#         StripeCustomer_object.customer_point += 5 
+#         StripeCustomer_object.save()
 
-        StripeCustomer_object.save()
+#         print(user.username + ' just subscribed.')
 
-
-        print(user.username + ' just subscribed.')
-
-    return HttpResponse(status=200)
+#     return HttpResponse(status=200)
 
 

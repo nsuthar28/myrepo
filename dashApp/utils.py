@@ -9,6 +9,8 @@ from dashApp.forecasting_algorithms.model3_lrrf import model3_lrrf
 from dashApp.forecasting_algorithms.model2_auto_arima import model2_auto_arima 
 from dashApp.forecasting_algorithms.aarima_fcast import aarima_fcast  
 
+from dashApp.models import *
+
 data_freq = 'W'
 
 # defining how many past periods to use to in LR and RF models to predict next Y value
@@ -246,3 +248,16 @@ def fill_last_val_grp(df1_f1, input_forecast_period):
     df1_f1.loc[last_value_idx,
                'Future_Forecast_BEST':] = df1_f1.loc[last_value_idx, 'Qty'].values[0]
     return df1_f1
+
+def store_intermediate_data(request):
+    print("in databse storage........")
+    session = request.session
+
+    file_data = session.get('file', [])
+
+    print("file data........", file_data)
+    uploaded_file = request.session.get("uploaded_file")
+
+    if len(file_data) != 0:
+        custData = CustomerData.objects.filter(customer=request.user, file_name=uploaded_file).first()
+        custData.putframe(file_data, request.user, uploaded_file)    
